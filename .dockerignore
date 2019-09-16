@@ -1,0 +1,9 @@
+target
+--*
+Dockerfile
+./*.json
+./*.txt
+./*.sh
+# !docker-entrypoint.sh
+*.tar
+# !target/x86_64-unknown-linux-musl/release/*

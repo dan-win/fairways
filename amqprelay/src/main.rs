@@ -138,7 +138,7 @@ impl Conf {
         let mut contents = String::new();
         file.read_to_string(&mut contents)
             .expect("Error reading conf file");
-        println!("FILE:\n{}\n", contents);
+        // debug!("FILE:\n{}\n", contents);
         let conf: Conf = serde_json::from_str(&contents)?;
         Ok(conf)
     }
@@ -147,7 +147,7 @@ impl Conf {
     fn from_args(args: Vec<String>) -> Result<Conf> {
         // let mut conf = Conf::default();
 
-        println!("ARGS: {:?}", args);
+        debug!("ARGS: {:?}", args);
 
         let mut amqp_addr = "".to_string();
         let mut backend_addr = "".to_string();

@@ -1,0 +1,7 @@
+FROM scratch
+
+ADD amqprelay /
+
+VOLUME [ "/etc/conf" ]
+
+CMD ["/amqprelay", "conf", "-f", "/etc/conf/amqp.conf.json"]

@@ -1,21 +1,4 @@
-[package]
-name = "amqprelay"
-version = "0.1.0"
-authors = ["danwin <dmitry.zimoglyadov@gmail.com>"]
-edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-futures = "0.1.29"
-lapin-futures = "0.26.10"
-log = "0.4.8"
-env_logger = "0.6.2"
-websocket = "0.23.0"
-reqwest = "0.9.20"
-reduce = "0.1.2"
-serde = "1.0.101"
-serde_json = "1.0.40"
-# tokio = "0.1.22"
-# uuid = {version = "0.7.4", features = ["v4"] }
-argparse = "0.2.2"
+[workspace]
+members = [
+    "amqprelay", "clirelay"
+]

@@ -91,6 +91,8 @@ struct Conf {
     amqp_addr: String,
     backend_addr: String,
     routes: Routes,
+    #[serde(default)]
+    force_declare: bool,
 }
 
 impl Default for Conf {
@@ -99,6 +101,7 @@ impl Default for Conf {
             amqp_addr: "".to_string(),
             backend_addr: "".to_string(),
             routes: Routes::Uri ("".to_string()),
+            force_declare: false,
         }
     }
 }
@@ -240,7 +243,7 @@ fn to_abs_url(root: &str, uri: &str) -> String {
 }
 
 
-fn create_consumer(client: &Client, queue_name: String, bc_uri: String, tx: Sender<Payload>) -> impl Future<Item = (), Error = ()> + Send + 'static {
+fn create_consumer(client: &Client, queue_name: String, bc_uri: String, tx: Sender<Payload>, queue_options: QueueDeclareOptions) -> impl Future<Item = (), Error = ()> + Send + 'static {
     debug!("will create consumer {}", &queue_name);
 
     let qn1 = queue_name.clone();
@@ -255,7 +258,7 @@ fn create_consumer(client: &Client, queue_name: String, bc_uri: String, tx: Send
             channel
                 .queue_declare(
                     &queue_name,
-                    QueueDeclareOptions{durable: true, ..Default::default()},
+                    queue_options,
                     FieldTable::default(),
                 )
                 .map(move |queue| (channel, queue))
@@ -347,7 +350,7 @@ fn main() -> Result<()> {
                     continue
                 }
             };
-            // let target_uri = format!("{}{}", backend_addr, message.uri);
+
             let resp = bc_client.post(&message.uri)
                 .json(&message)
                 .send();
@@ -371,8 +374,12 @@ fn main() -> Result<()> {
                     let tx1 = tx.clone();
                     let qn = queue_name.clone();
                     let uri = bc_uri.clone();
+                    let queue_options = QueueDeclareOptions{
+                        passive: !conf.force_declare, 
+                        ..Default::default()
+                    };
                     std::thread::spawn(move || {
-                        futures::executor::spawn(create_consumer(&_client, qn, uri, tx1))
+                        futures::executor::spawn(create_consumer(&_client, qn, uri, tx1, queue_options))
                             .wait_future()
                             .expect("consumer failure")
                     });

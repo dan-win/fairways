@@ -1,0 +1,16 @@
+{
+    "amqpAddr": "amqp://houston:houston@172.17.0.1:5672/%2f",
+    "backendAddr": "http://172.17.0.1:8765",
+    "routes": {
+        "map": [
+            {
+                "queue": "amqp.test",
+                "bcUri": "/posts"
+            },
+            {
+                "queue": "amqp.test.2",
+                "bcUri": "/posts"
+            }
+        ]
+    }
+}

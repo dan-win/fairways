@@ -7,8 +7,9 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+core = { path = "../core" }
 futures = "0.1.29"
-lapin-futures = "0.28.2"
+lapin-futures = "0.26.10"
 log = "0.4.8"
 env_logger = "0.6.2"
 actix = "0.8.3"

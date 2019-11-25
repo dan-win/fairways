@@ -46,9 +46,20 @@ use actix_web::{
 use actix_cors::Cors;
 
 // ---
+// struct handlers {};
+
+// impl handlers {
+
+// }
+// ---
+
+
+mod appconfig;
+use appconfig::config_app;
+
 
 fn main() -> std::io::Result<()> {
-    dotenv().ok();
+    // dotenv().ok();
 
     
     ::std::env::set_var("RUST_LOG", "error,actix_web=error,main=error");
@@ -67,46 +78,47 @@ fn main() -> std::io::Result<()> {
     let sys = actix::System::new("http2buff");
     println!("Starting http server: {}", &srv_addr);
     
-    let registry_addr = RoutesRegistry::from_registry();
+    // let registry_addr = RoutesRegistry::from_registry();
     
     // TO_DO: SyncContext: Context.set_mailbox_capacity() up from 16!
     HttpServer::new(move || {
         
-        let shared_data = web::Data::new(AppState{
+        // let shared_data = web::Data::new(AppState{
             // router: Arbiter::start(move|_| Router::new())
-            router: Router::new().start()
+            // router: Router::new().start()
             // buffers
-        });
+        // });
     
-        fn add_cors() {
-            // Cors::default()
-            Cors::new()
-                // .allowed_origin("*") // <- Avoid credentials in client!!! See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin
-                .allowed_methods(vec![
-                    "HEAD",
-                    "OPTIONS",
-                    "GET", 
-                    "POST",
-                    "DELETE"
-                    ])
-                .allowed_headers(vec![
-                    http::header::ACCEPT,
-                    http::header::CONTENT_TYPE,
-                    http::header::CONTENT_LENGTH,
-                    // http::header::USER_AGENT,
-                    http::header::ORIGIN, 
-                    // http::header::AUTHORIZATION, 
-                    http::header::COOKIE, 
-                    http::header::HeaderName::from_static(X_COOKIE_HEADER),
-                    ])
-                .supports_credentials()
-                .max_age(3600)        
-        }
+        // fn add_cors() {
+        //     // Cors::default()
+        //     Cors::new()
+        //         // .allowed_origin("*") // <- Avoid credentials in client!!! See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin
+        //         .allowed_methods(vec![
+        //             "HEAD",
+        //             "OPTIONS",
+        //             "GET", 
+        //             "POST",
+        //             "DELETE"
+        //             ])
+        //         .allowed_headers(vec![
+        //             http::header::ACCEPT,
+        //             http::header::CONTENT_TYPE,
+        //             http::header::CONTENT_LENGTH,
+        //             // http::header::USER_AGENT,
+        //             http::header::ORIGIN, 
+        //             // http::header::AUTHORIZATION, 
+        //             http::header::COOKIE, 
+        //             http::header::HeaderName::from_static(X_COOKIE_HEADER),
+        //             ])
+        //         .supports_credentials()
+        //         .max_age(3600)        
+        // }
         
-        App::new().register_data(shared_data.clone())
-            .wrap(
-                add_cors()
-            )
+        App::new()
+            // .register_data(shared_data.clone())
+            // .wrap(
+            //     add_cors()
+            // )
             .configure(config_app)
             // enable logger
             .wrap(middleware::Logger::default())

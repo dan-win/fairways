@@ -8,6 +8,9 @@ extern crate futures;
 // extern crate num_cpus;
 use error::Error;
 
+#[macro_use]
+extern crate lazy_static;
+
 // extern crate fastlog;
 #[macro_use]
 extern crate log;
@@ -23,6 +26,9 @@ use futures::future::{Future, IntoFuture, result, ok as fut_ok, err as fut_err, 
 // #[macro_use] extern crate actix_derive;
 
 // extern crate itertools;
+
+extern crate lapin_futures;
+use lapin_futures as lapin;
 
 use actix_web::dev::Payload; // <--- for dev::Payload
 // use actix_broker::{BrokerSubscribe, BrokerIssue};
@@ -53,9 +59,13 @@ use actix_cors::Cors;
 // }
 // ---
 
+use std::env;
 
 mod appconfig;
 use appconfig::config_app;
+
+mod http_handlers;
+// use http_handlers;
 
 
 fn main() -> std::io::Result<()> {

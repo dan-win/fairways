@@ -1,6 +1,5 @@
 use actix::prelude::*;
 
-
 use crate::lapin::options::{BasicConsumeOptions, QueueDeclareOptions};
 use crate::lapin::types::FieldTable;
 use crate::lapin::{Client, ConnectionProperties, Channel};

@@ -8,7 +8,7 @@ use futures::future::{Future, FutureResult, IntoFuture, result, ok as fut_ok, er
 
 use std::collections::HashMap;
 
-use core::models::{MetaEvent};
+use core::models::{Context, MetaEvent};
 
 use actix_web::{
     // get, // <- here is "decorator"
@@ -27,27 +27,28 @@ use actix_web::{
 };
 
 use actix_web::dev; // <--- for dev::Payload
+use actix_web::web::Bytes;
 
 use error::Error;
 
 lazy_static! {
     static ref HEADER_CT_JSON: http::header::HeaderValue = http::header::HeaderValue::from_static("application/json");
     static ref HEADER_CT_URLENCODED: http::header::HeaderValue = http::header::HeaderValue::from_static("x-form/urlencoded");
-    static ref MAX_SIZE: usize = 2_048;
+    static ref MAX_SIZE: usize = 262_144;
 }
 
 #[derive(Debug, Clone)]
-pub struct HttpEvent {
-    inner: MetaEvent,
+pub struct HttpEventContext {
+    inner: Context,
 }
 
-impl HttpEvent {
+impl HttpEventContext {
     /// Deconstruct to an inner value
-    pub fn into_inner(self) -> MetaEvent {
+    pub fn into_inner(self) -> Context {
         self.inner
     }    
 }
-impl FromRequest for HttpEvent {
+impl FromRequest for HttpEventContext {
     type Config = ();
     // type Result = Result<Self, Error>;
 
@@ -65,173 +66,155 @@ impl FromRequest for HttpEvent {
         let headers: HashMap<String, String> = HashMap::new();
         // let payload = web::Bytes::from(req.query_string());
         // let query_string = req.query_string().to_string();
-        let payload = None;
 
-        let inner = MetaEvent {
+        let inner = Context {
             content_type,
             route,
-            headers,
-            payload
+            headers
         };
 
-        Ok(HttpEvent{inner})
+        Ok(HttpEventContext{inner})
     }
 }
 
 
-// #[derive(Debug)]
-// pub struct HttpGetEvent {
-//     inner: MetaEvent
-// }
-
-// #[derive(Debug)]
-// pub struct HttpPostEvent {
-//     inner: MetaEvent
-// }
 
 
-// impl HttpPostEvent {
-//     /// Deconstruct to an inner value
-//     pub fn into_inner(self) -> MetaEvent {
-//         self.inner
-//     }    
-// }
+#[derive(Debug)]
+pub struct HttpGetPayload {
+    inner: Bytes
+}
 
-// impl HttpGetEvent {
-//     /// Deconstruct to an inner value
-//     pub fn into_inner(self) -> MetaEvent {
-//         self.inner
-//     }    
-// }
+#[derive(Debug)]
+pub struct HttpPostPayload {
+    inner: Bytes
+}
 
-// impl FromRequest for HttpPostEvent {
-//     type Config = ();
-//     // type Result = Result<Self, Error>;
 
-//     type Error = Error;
-//     // type Future = Result<Self, Self::Error>;
-//     // type Config = QueryConfig;
-//     // type Future = Result<Self, Self::Error>;
-//     // type Config = QueryConfig;
-//     // type Future: IntoFuture<Item = Self, Error = Self::Error>
-//     type Future =
-//         Box<Future<Item = HttpPostEvent, Error = Error>>;
-//         // Either<Box<dyn Future<Item = HttpPostEvent, Error = Error> + 'static>, FutureResult<HttpPostEvent, Error>>;
+impl HttpPostPayload {
+    /// Deconstruct to an inner value
+    pub fn into_inner(self) -> Bytes {
+        self.inner
+    }    
+}
 
-//     // #[inline]
-//     // fn from_request(req: &HttpRequest, payload: &mut dev::Payload) -> Self::Future {
+impl HttpGetPayload {
+    /// Deconstruct to an inner value
+    pub fn into_inner(self) -> Bytes {
+        self.inner
+    }    
+}
 
-//     //     let limit = 8000;
-//     //     Either::A(Box::new(
-//     //         dev::HttpMessageBody::new(req, payload).limit(limit).from_err(),
-//     //     ))
-//     // }
+impl FromRequest for HttpPostPayload {
+    type Config = ();
+    // type Result = Result<Self, Error>;
 
-//     #[inline]
-//     fn from_request(req: &HttpRequest, payload: &mut dev::Payload) -> Self::Future {
-//         let route = req.path().to_string();
-//         let content_type = req.headers().get("content-type").unwrap_or(&HEADER_CT_JSON).to_str().unwrap().to_string();
-//         let headers: HashMap<String, String> = HashMap::new();
+    type Error = Error;
+    // type Future = Result<Self, Self::Error>;
+    // type Config = QueryConfig;
+    // type Future = Result<Self, Self::Error>;
+    // type Config = QueryConfig;
+    // type Future: IntoFuture<Item = Self, Error = Self::Error>
+    type Future =
+        Box<dyn Future<Item = HttpPostPayload, Error = Error>>;
+        // Either<Box<dyn Future<Item = HttpPostPayload, Error = Error> + 'static>, FutureResult<HttpPostPayload, Error>>;
 
-//         // payload.map_err(Error::from)
-//         //     .fold(web::BytesMut::new(), move |mut body, chunk| {
-//         //         body.extend_from_slice(&chunk);
-//         //         Ok::<_, Error>(body)
-//         //     })
-//         //     .and_then(|body| {
-//         //         format!("Body {:?}!", body);
-//         //         Ok(HttpResponse::Ok().finish())
-//         //     })
+    // #[inline]
+    // fn from_request(req: &HttpRequest, payload: &mut dev::Payload) -> Self::Future {
 
-//         // payload is a stream of Bytes objects
-//         let f = payload
-//             // `Future::from_err` acts like `?` in that it coerces the error type from
-//             // the future into the final error type
-//             .from_err()
-//             // `fold` will asynchronously read each chunk of the request body and
-//             // call supplied closure, then it resolves to result of closure
-//             .fold(web::BytesMut::with_capacity(8_192), move |mut body, chunk| {
-//                 // limit max size of in-memory payload
-//                 if (body.len() + chunk.len()) > MAX_SIZE {
-//                     // Err(error::ErrorBadRequest("overflow"))
-//                     Err(error::PayloadError::Overflow)
-//                 } else {
-//                     body.extend_from_slice(&chunk);
-//                     Ok(body)
-//                 }
-//             })
-//             .map(|body| body.freeze())
-//             .and_then(|payload|{
+    //     let limit = 8000;
+    //     Either::A(Box::new(
+    //         dev::HttpMessageBody::new(req, payload).limit(limit).from_err(),
+    //     ))
+    // }
 
-//                 let inner = MetaEvent {
-//                     content_type,
-//                     route,
-//                     headers,
-//                     payload
-//                     // payload: web::Bytes::from(body)
-//                 };
+    #[inline]
+    fn from_request(req: &HttpRequest, payload: &mut dev::Payload) -> Self::Future {
 
-//                 Ok(HttpPostEvent{inner})
+        // payload.map_err(Error::from)
+        //     .fold(web::BytesMut::new(), move |mut body, chunk| {
+        //         body.extend_from_slice(&chunk);
+        //         Ok::<_, Error>(body)
+        //     })
+        //     .and_then(|body| {
+        //         format!("Body {:?}!", body);
+        //         Ok(HttpResponse::Ok().finish())
+        //     })
 
-//             });
-//             // Either::A(Box::new(f))
-//             Box::new(f)
-//             // // `Future::and_then` can be used to merge an asynchronous workflow with a
-//             // // synchronous workflow
-//             // .and_then(|body| {
-//             //     // body is loaded, now we can deserialize serde-json
+        // payload is a stream of Bytes objects
+        Box::new(payload.take()
+            // `Future::from_err` acts like `?` in that it coerces the error type from
+            // the future into the final error type
+            .from_err()
+            // `fold` will asynchronously read each chunk of the request body and
+            // call supplied closure, then it resolves to result of closure
+            .fold(web::BytesMut::with_capacity(262_144), move |mut body, chunk| {
+                // limit max size of in-memory payload
+                if (body.len() + chunk.len()) > *MAX_SIZE {
+                    // Err(error::ErrorBadRequest("overflow"))
+                    Err(error::PayloadError::Overflow)
+                } else {
+                    body.extend_from_slice(&chunk);
+                    Ok(body)
+                }
+            })
+            .map(|body| body.freeze())
+            .and_then(|payload|{
 
-//             //     let inner = MetaEvent {
-//             //         content_type,
-//             //         route,
-//             //         headers,
-//             //         payload: body
-//             //     };
+                let inner = payload;
+                    // payload: web::Bytes::from(body)
 
-//             //     Ok(HttpPostEvent{inner})
-//         // Ok(Headers{ inner })
-//     }
-// }
+                Ok(HttpPostPayload{inner})
+
+            }))
+            // Either::A(Box::new(f))
+            // Box::new(f)
+            // // `Future::and_then` can be used to merge an asynchronous workflow with a
+            // // synchronous workflow
+            // .and_then(|body| {
+            //     // body is loaded, now we can deserialize serde-json
+
+            //     let inner = MetaEvent {
+            //         content_type,
+            //         route,
+            //         headers,
+            //         payload: body
+            //     };
+
+            //     Ok(HttpPostPayload{inner})
+        // Ok(Headers{ inner })
+    }
+}
 
 
 
-// impl FromRequest for HttpGetEvent {
-//     type Config = ();
-//     // type Result = Result<Self, Error>;
+impl FromRequest for HttpGetPayload {
+    type Config = ();
+    // type Result = Result<Self, Error>;
 
-//     type Error = Error;
-//     type Future = Result<Self, Self::Error>;
-//     // type Config = QueryConfig;
-//     // type Future = Result<Self, Self::Error>;
-//     // type Config = QueryConfig;
-//     // type Future: IntoFuture<Item = Self, Error = Self::Error>
+    type Error = Error;
+    type Future = Result<Self, Self::Error>;
+    // type Config = QueryConfig;
+    // type Future = Result<Self, Self::Error>;
+    // type Config = QueryConfig;
+    // type Future: IntoFuture<Item = Self, Error = Self::Error>
 
-//     #[inline]
-//     fn from_request(req: &HttpRequest, _: &mut dev::Payload) -> Self::Future {
-//         let route = req.path().to_string();
-//         let content_type = req.headers().get("content-type").unwrap_or(&HEADER_CT_URLENCODED).to_str().unwrap().to_string();
-//         let headers: HashMap<String, String> = HashMap::new();
-//         let payload = web::Bytes::from(req.query_string());
+    #[inline]
+    fn from_request(req: &HttpRequest, _: &mut dev::Payload) -> Self::Future {
+        let inner = web::Bytes::from(req.query_string());
 
-//         let inner = MetaEvent {
-//             content_type,
-//             route,
-//             headers,
-//             payload
-//         };
-
-//         Ok(HttpGetEvent{inner})
-//     }
-// }
+        Ok(HttpGetPayload{inner})
+    }
+}
 
 
 ///////////////////
 /// 
-pub fn by_get(evt: HttpEvent) -> impl Future<Item = HttpResponse, Error = Error> {
+pub fn by_get(evt: HttpEventContext) -> impl Future<Item = HttpResponse, Error = Error> {
     fut_ok(HttpResponse::Ok().body(""))
 }
 
-pub fn by_post(evt: HttpEvent) -> impl Future<Item = HttpResponse, Error = Error> {
+pub fn by_post(evt: HttpEventContext) -> impl Future<Item = HttpResponse, Error = Error> {
     fut_ok(HttpResponse::Ok().body(""))
 }
 
@@ -354,36 +337,47 @@ mod tests {
     use actix_web::{test, web, App, web::Query, web::Payload, web::Bytes};
 
 
-    static BODY: &[u8] = b"123";
+    static BODY: &[u8] = b"a_post=1&b_bost=2";
     static QUERY: &str = "";
 
-    fn handle_get(evt: HttpEvent, q: Query<String>) -> String {
-        println!("*******************************> 0; {:?}", evt);
-        let mut evt = evt.into_inner();
-        println!("*******************************> 1");
-        let v8 = q.into_inner().into_bytes();
-        println!("*******************************> 2");
-        evt.payload = Some(Bytes::from(v8));
+    fn handle_get(payload: HttpGetPayload, ctx: HttpEventContext) -> impl Future<Item = HttpResponse, Error = Error> {
+        println!("*******************************> 0; {:?}", ctx);
+        let evt = MetaEvent{
+            ctx: ctx.into_inner(),
+            payload: payload.into_inner()
+        };
         println!("*******************************> 3; {:?}", evt);
-        // format!("{:?}", evt)
-        "Ok".to_string()
+        // let mut evt = evt.into_inner();
+        // println!("*******************************> 1");
+        // let v8 = q.into_inner().into_bytes();
+        // println!("*******************************> 2");
+        // evt.payload = Some(Bytes::from(v8));
+        // println!("*******************************> 3; {:?}", evt);
+        // // format!("{:?}", evt)
+        fut_ok(HttpResponse::Ok().body("Ok"))
     }
 
-    fn handle_post(evt: HttpEvent, payload: web::Payload) -> impl Future<Item = HttpResponse, Error = Error> {
-
-        payload.map_err(Error::from)
-            .fold(web::BytesMut::new(), move |mut body, chunk| {
-                body.extend_from_slice(&chunk);
-                Ok::<_, Error>(body)
-            })
-            .and_then(|body| {
-                // format!("Body {:?}!", evt);
-                let mut evt = evt.into_inner();
-                evt.payload = Some(body.freeze());
-                println!("*******************************> {:?}", evt);
-                let s = format!("{:?}", evt);
-                Ok(HttpResponse::Ok().body(s))
-            })
+    fn handle_post(payload: HttpPostPayload, ctx: HttpEventContext) -> impl Future<Item = HttpResponse, Error = Error> {
+        println!("*******************************> 0; {:?}", ctx);
+        let evt = MetaEvent{
+            ctx: ctx.into_inner(),
+            payload: payload.into_inner()
+        };
+        println!("*******************************> 3; {:?}", evt);
+        // payload.map_err(Error::from)
+        //     .fold(web::BytesMut::new(), move |mut body, chunk| {
+        //         body.extend_from_slice(&chunk);
+        //         Ok::<_, Error>(body)
+        //     })
+        //     .and_then(|body| {
+        //         // format!("Body {:?}!", evt);
+        //         let mut evt = evt.into_inner();
+        //         evt.payload = body.freeze();
+        //         println!("*******************************> {:?}", evt);
+        //         let s = format!("{:?}", evt);
+        //         Ok(HttpResponse::Ok().body(s))
+        //     })
+        fut_ok(HttpResponse::Ok().body("Ok"))
     }
 
     #[test]
@@ -402,8 +396,8 @@ mod tests {
     #[test]
     fn test_from_get() {
         let mut app = test::init_service(
-            App::new().route("/", web::get().to(handle_get)));
-        let req = test::TestRequest::get().uri("/")
+            App::new().route("/", web::get().to_async(handle_get)));
+        let req = test::TestRequest::get().uri("/?a=1&b=2")
             .to_request();
 
         // let resp = test::block_on(index(req)).unwrap();

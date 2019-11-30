@@ -12,32 +12,28 @@ pub type AttrMap = HashMap<String, JsonValue>;
 
 
 /// Message in internal bus
-#[derive(Clone)]
-pub struct MetaEvent {
+#[derive(Clone, Debug)]
+pub struct Context {
     pub content_type: String,
     pub route: String,
     // pub parameters: HashMap<String, String>,
 
     pub headers: HashMap<String, String>,
+}
+
+pub struct MetaEvent {
+    pub ctx: Context,
     // pub payload: models::AttrMap,
-    pub payload: Option<Bytes>,
+    pub payload: Bytes,
 }
 
 impl fmt::Debug for MetaEvent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let bytes_repr: String = match self.payload.clone() {
-            Some(v) => {
-                let mut vec_of_u8 = vec![];
-                vec_of_u8.extend_from_slice(&v);
-                String::from_utf8(vec_of_u8).unwrap_or("<err>".to_string())
-            },
-            None => String::from("-")
-        };
+        let mut vec_of_u8 = vec![];
+        vec_of_u8.extend_from_slice(&self.payload);
+        let bytes_repr = String::from_utf8(vec_of_u8).unwrap_or("<err>".to_string());
         let dummy = Bytes::from_static(b"-");
-        write!(f, "MetaEvent {{ content_type: {}, route: {}, headerss: {:?}, payload: {} }}", self.content_type, 
-        self.route, 
-        self.headers, 
-        bytes_repr
-        )
+        write!(f, "MetaEvent {{ context: {:?}, payload: {} }}", self.ctx, bytes_repr)
     }
 }
+

@@ -9,7 +9,8 @@ edition = "2018"
 [dependencies]
 core = { path = "../core" }
 futures = "0.1.29"
-lapin-futures = "0.26.10"
+# lapin-futures = "0.26.10"
+amiquip = { version = "0.3", default-features = false }
 log = "0.4.8"
 env_logger = "0.6.2"
 actix = "0.8.3"

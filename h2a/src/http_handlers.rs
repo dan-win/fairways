@@ -1,14 +1,19 @@
 use actix::prelude::*;
 
-use crate::lapin::options::{BasicConsumeOptions, QueueDeclareOptions};
-use crate::lapin::types::FieldTable;
-use crate::lapin::{Client, ConnectionProperties, Channel};
+use std::convert::From;
+// use crate::lapin::options::{BasicConsumeOptions, QueueDeclareOptions};
+// use crate::lapin::types::FieldTable;
+// use crate::lapin::{Client, ConnectionProperties, Channel};
+
+use amiquip::{
+    Channel, ConfirmSmoother, Connection, Exchange, Publish, AmqpProperties, QueueDeclareOptions, Result,
+};
 
 use futures::future::{Future, FutureResult, IntoFuture, result, ok as fut_ok, err as fut_err, finished, Either, join_all};
 
 use std::collections::HashMap;
 
-use core::models::{Context, MetaEvent};
+use core::models::{Context as MsgContext, MetaEvent};
 
 use actix_web::{
     // get, // <- here is "decorator"
@@ -39,35 +44,28 @@ lazy_static! {
 
 #[derive(Debug, Clone)]
 pub struct HttpEventContext {
-    inner: Context,
+    inner: MsgContext,
 }
 
 impl HttpEventContext {
     /// Deconstruct to an inner value
-    pub fn into_inner(self) -> Context {
+    pub fn into_inner(self) -> MsgContext {
         self.inner
     }    
 }
 impl FromRequest for HttpEventContext {
     type Config = ();
-    // type Result = Result<Self, Error>;
 
     type Error = Error;
     type Future = Result<Self, Self::Error>;
-    // type Config = QueryConfig;
-    // type Future = Result<Self, Self::Error>;
-    // type Config = QueryConfig;
-    // type Future: IntoFuture<Item = Self, Error = Self::Error>
 
     #[inline]
     fn from_request(req: &HttpRequest, _: &mut dev::Payload) -> Self::Future {
-        let route = req.path().to_string();
+        let route = req.match_info().get("tail").unwrap_or("").to_string();
         let content_type = req.headers().get("content-type").unwrap_or(&HEADER_CT_URLENCODED).to_str().unwrap().to_string();
         let headers: HashMap<String, String> = HashMap::new();
-        // let payload = web::Bytes::from(req.query_string());
-        // let query_string = req.query_string().to_string();
 
-        let inner = Context {
+        let inner = MsgContext {
             content_type,
             route,
             headers
@@ -131,16 +129,6 @@ impl FromRequest for HttpPostPayload {
     #[inline]
     fn from_request(req: &HttpRequest, payload: &mut dev::Payload) -> Self::Future {
 
-        // payload.map_err(Error::from)
-        //     .fold(web::BytesMut::new(), move |mut body, chunk| {
-        //         body.extend_from_slice(&chunk);
-        //         Ok::<_, Error>(body)
-        //     })
-        //     .and_then(|body| {
-        //         format!("Body {:?}!", body);
-        //         Ok(HttpResponse::Ok().finish())
-        //     })
-
         // payload is a stream of Bytes objects
         Box::new(payload.take()
             // `Future::from_err` acts like `?` in that it coerces the error type from
@@ -151,7 +139,6 @@ impl FromRequest for HttpPostPayload {
             .fold(web::BytesMut::with_capacity(262_144), move |mut body, chunk| {
                 // limit max size of in-memory payload
                 if (body.len() + chunk.len()) > *MAX_SIZE {
-                    // Err(error::ErrorBadRequest("overflow"))
                     Err(error::PayloadError::Overflow)
                 } else {
                     body.extend_from_slice(&chunk);
@@ -162,27 +149,10 @@ impl FromRequest for HttpPostPayload {
             .and_then(|payload|{
 
                 let inner = payload;
-                    // payload: web::Bytes::from(body)
 
                 Ok(HttpPostPayload{inner})
 
             }))
-            // Either::A(Box::new(f))
-            // Box::new(f)
-            // // `Future::and_then` can be used to merge an asynchronous workflow with a
-            // // synchronous workflow
-            // .and_then(|body| {
-            //     // body is loaded, now we can deserialize serde-json
-
-            //     let inner = MetaEvent {
-            //         content_type,
-            //         route,
-            //         headers,
-            //         payload: body
-            //     };
-
-            //     Ok(HttpPostPayload{inner})
-        // Ok(Headers{ inner })
     }
 }
 
@@ -209,14 +179,166 @@ impl FromRequest for HttpGetPayload {
 
 
 ///////////////////
-/// 
-pub fn by_get(evt: HttpEventContext) -> impl Future<Item = HttpResponse, Error = Error> {
-    fut_ok(HttpResponse::Ok().body(""))
+
+#[inline]
+fn handle_parts(payload: Bytes, ctx: HttpEventContext) -> impl Future<Item = HttpResponse, Error = Error> {
+    let msg = AmqpMessage(payload, ctx);
+    AmqpServerProxy::from_registry()
+    .send(msg)
+    .from_err()
+    .and_then(|recipient: Option<Recipient<Event>>| {
+        // // fut_ok(recipient.unwrap())
+        // match recipient {
+        //     Some(r) => Either::A(fut_ok(r)),
+        //     None => Either::B(fut_err(SvcError::NotFound {}))
+        // }
+        |res| Ok(HttpResponse::Ok().body(""))
+    })
+    // fut_ok(HttpResponse::Ok().body(""))
 }
 
-pub fn by_post(evt: HttpEventContext) -> impl Future<Item = HttpResponse, Error = Error> {
-    fut_ok(HttpResponse::Ok().body(""))
+pub fn by_get(payload: HttpGetPayload, ctx: HttpEventContext) -> impl Future<Item = HttpResponse, Error = Error> {
+    handle_parts(payload.into_inner(), ctx)
 }
+
+pub fn by_post(payload: HttpPostPayload, ctx: HttpEventContext) -> impl Future<Item = HttpResponse, Error = Error> {
+    handle_parts(payload.into_inner(), ctx)
+}
+
+/// To-do: implement MessageResponse (Option)
+#[derive(Clone, Debug, Message)]
+pub struct AmqpMessage(Bytes, MsgContext);
+// route, message
+
+impl AmqpMessage {
+    pub fn new(payload: Bytes, ctx: MsgContext) -> Self {
+        AmqpMessage(payload, ctx)
+        // let (payload, ctx) = self;
+        // let exchange_name: String = ctx.route.clone();
+        // let routing_key = "";
+        // let properties = AmqpProperties::default()
+        //     .with_content_type(ctx.content_type.clone()); // <- later: add .with_headers!
+        // let body = payload;
+        // let publish = Publish{
+        //     body,
+        //     routing_key,
+        //     mandatory: false, // <- use later to handle errors on non-existing exchanges!
+        //     immediate: false,
+        //     properties,
+        // };
+        // AmqpMessage(exchange_name.clone(), publish) // <- to-do: borrow instead of clone
+    }
+}
+
+impl<'a> From<AmqpMessage> for Publish<'a> {
+    pub fn from(msg: &AmqpMessage) -> Publish<'a> {
+        let AmqpMessage(payload, ctx) = *msg;
+        let exchange_name: String = ctx.route.clone();
+        let routing_key = "";
+        let properties = AmqpProperties::default()
+            .with_content_type(ctx.content_type.clone()); // <- later: add .with_headers!
+        let body = payload;
+        Publish{
+            body,
+            routing_key,
+            mandatory: false, // <- use later to handle errors on non-existing exchanges!
+            immediate: false,
+            properties,
+        }
+    }
+}
+
+
+pub struct AmqpServerProxy {
+    ready:bool,
+    restarted: bool,
+    pub uri: &'static str,
+    connection: Option<Connection>,
+    endpoints: HashMap<String, Recipient<AmqpMessage>>
+}
+
+impl AmqpServerProxy {
+    pub fn new(uri: &'static str) -> Self {
+        Self {
+            ready: false,
+            restarted: false,
+            uri,
+            connection: None,
+            endpoint: HashMap::new()
+        }
+    }
+}
+
+
+impl Actor for AmqpServerProxy {
+    type Context = Context<Self>;
+}
+
+impl Handler<AmqpMessage> for AmqpServerProxy {
+    type Result = ();
+
+    fn handle(&mut self, msg: AmqpMessage, ctx: &mut Context<AmqpServerProxy>) {
+        // let AmqpMessage(route, _) = msg;
+        let route = msg.0.clone();
+        let endpoint = self.endpoints.get(&route);
+        let client = match self.endpoints.get(&route) {
+            Some(&client) => client,
+            _ => {
+                // See also: Connection::insecure_open_stream
+                let channel = connection.open_channel(None)?;
+                // let exchange = Exchange::direct(channel)
+                let client = AmqpClient::new(channel, route.clone()).start().recipient();
+                self.endpoints.insert(route.clone(), client);
+                client
+            }
+        };
+        client.do_send(msg);
+    }
+}
+
+impl Supervised for AmqpServerProxy {
+    fn restarting(&mut self, ctx: &mut Context<AmqpServerProxy>) {
+        self.endpoints.clear();
+        self.connection = Connection::insecure_open(self.uri)?
+    }
+}
+
+impl SystemService for AmqpServerProxy {
+
+}
+
+pub struct AmqpClient {
+    // exchange: Exchange
+    channel: Channel,
+    exchange_name: String
+}
+
+impl AmqpClient {
+    pub fn new(channel: Channel, exchange_name: String) -> Self {
+        Self{channel, exchange_name}
+    }
+}
+
+impl Actor for AmqpClient {
+    type Context = Context<Self>;
+}
+
+
+impl Handler<AmqpMessage> for AmqpClient {
+    type Result = ();
+
+    fn handle(&mut self, msg: AmqpMessage, ctx: &mut Context<AmqpClient>) {
+        let payload = Payload::from(msg);
+        // self.exchange.publish(payload)?;
+        self.channel.basic_publish(self.exchange_name, payload)?;
+    }
+}
+
+impl Supervised for AmqpClient {
+
+}
+
+
 
 // #[derive(Debug, Deserialize, Serialize, Clone)]
 // struct PubConf {
@@ -241,7 +363,7 @@ pub fn by_post(evt: HttpEventContext) -> impl Future<Item = HttpResponse, Error 
 // //////////////////
 
 
-
+// Reused connections pool. Arbiter + SynConnections. 
 
 // pub struct AmqpClient {
 //     conn_uri: String,
@@ -347,13 +469,6 @@ mod tests {
             payload: payload.into_inner()
         };
         println!("*******************************> 3; {:?}", evt);
-        // let mut evt = evt.into_inner();
-        // println!("*******************************> 1");
-        // let v8 = q.into_inner().into_bytes();
-        // println!("*******************************> 2");
-        // evt.payload = Some(Bytes::from(v8));
-        // println!("*******************************> 3; {:?}", evt);
-        // // format!("{:?}", evt)
         fut_ok(HttpResponse::Ok().body("Ok"))
     }
 
@@ -364,30 +479,16 @@ mod tests {
             payload: payload.into_inner()
         };
         println!("*******************************> 3; {:?}", evt);
-        // payload.map_err(Error::from)
-        //     .fold(web::BytesMut::new(), move |mut body, chunk| {
-        //         body.extend_from_slice(&chunk);
-        //         Ok::<_, Error>(body)
-        //     })
-        //     .and_then(|body| {
-        //         // format!("Body {:?}!", evt);
-        //         let mut evt = evt.into_inner();
-        //         evt.payload = body.freeze();
-        //         println!("*******************************> {:?}", evt);
-        //         let s = format!("{:?}", evt);
-        //         Ok(HttpResponse::Ok().body(s))
-        //     })
         fut_ok(HttpResponse::Ok().body("Ok"))
     }
 
     #[test]
     fn test_from_post() {
         let mut app = test::init_service(
-            App::new().route("/", web::post().to_async(handle_post)));
-        let req = test::TestRequest::post().uri("/").set_payload(BODY)
+            App::new().route("/{tail:.*}", web::post().to_async(handle_post)));
+        let req = test::TestRequest::post().uri("/myroute").set_payload(BODY)
             .to_request();
 
-        // let resp = test::block_on(index(req)).unwrap();
         let resp = test::block_on(app.call(req)).unwrap();
         println!("*******************************> {:?}", resp);
         assert_eq!(resp.status(), http::StatusCode::OK);
@@ -396,11 +497,10 @@ mod tests {
     #[test]
     fn test_from_get() {
         let mut app = test::init_service(
-            App::new().route("/", web::get().to_async(handle_get)));
-        let req = test::TestRequest::get().uri("/?a=1&b=2")
+            App::new().route("/{tail:.*}", web::get().to_async(handle_get)));
+        let req = test::TestRequest::get().uri("/myroute?a=1&b=2")
             .to_request();
 
-        // let resp = test::block_on(index(req)).unwrap();
         let resp = test::block_on(app.call(req)).unwrap();
         println!("*******************************> {:?}", resp);
         assert_eq!(resp.status(), http::StatusCode::OK);

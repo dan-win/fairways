@@ -27,8 +27,10 @@ use futures::future::{Future, IntoFuture, result, ok as fut_ok, err as fut_err, 
 
 // extern crate itertools;
 
-extern crate lapin_futures;
-use lapin_futures as lapin;
+// extern crate lapin_futures;
+// use lapin_futures as lapin;
+
+extern crate amiquip;
 
 use actix_web::dev::Payload; // <--- for dev::Payload
 // use actix_broker::{BrokerSubscribe, BrokerIssue};

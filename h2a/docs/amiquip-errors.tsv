@@ -1,0 +1,48 @@
+cfg 	Description	Message	Error	Type
+	The client closed the channel.	"channel has been closed"	ClientClosedChannel,	ChannelError
+	The server sent us a consumer tag that is equal to another consumer tag we already have on the same channel.	"server sent duplicate consumer tag for channel {}: {}"	DuplicateConsumerTag { channel_id: u16, consumer_tag: String },	ChannelError
+	The I/O loop has dropped the sending side of a channel, typically because it has exited due to another error.	"i/o loop dropped sending side of a channel"	EventLoopDropped,	ChannelError
+	Forking the I/O thread failed.	"fork failed: {}"	ForkFailed { source: io::Error },	ChannelError
+	The I/O thread panicked.	"I/O thread panicked"	IoThreadPanic,	ChannelError
+	'The server sent frames for a channel ID we don''t know about.'	"received message for nonexistent channel {}"	ReceivedFrameWithBogusChannelId { channel_id: u16 },	ChannelError
+	The server closed the given channel with the given reply code and text.	"server closed channel {} (code={}, message={})"	ServerClosedChannel {channel_id: u16, code: u16, message: String},	ChannelError
+	An explicit channel ID was requested, but that channel is unavailable for use (e.g., because there is another open channel with the same ID).	"requested channel id ({}) is unavailable"	UnavailableChannelId { channel_id: u16 },	ChannelError
+	'The server sent us a [`Delivery`](struct.Delivery.html) for a channel we don''t know about.'	"received delivery with unknown consumer tag for channel {}: {}"	UnknownConsumerTag { channel_id: u16, consumer_tag: String },	ChannelError
+	The client closed the connection.	"client closed connection"	ClientClosedConnection,	ConnectionError
+	Timeout occurred while performing the initial TCP connection.	"timeout occurred while waiting for TCP connection"	ConnectionTimeout,	ConnectionError
+	Could not create mio Poll handle.	"failed to create polling handle: {}"	CreatePollHandle { source: io::Error },	ConnectionError
+	Could not register descriptor with Poll handle.	"failed to deregister object with polling handle: {}"	DeregisterWithPollHandle { source: io::Error },	ConnectionError
+	The I/O loop attempted to send a message to a caller that did not exist. This indicates either a bug in amiquip or a connection that is in a bad state and in the process of tearing down.	"i/o loop thread tried to communicate with a nonexistent client"	EventLoopClientDropped,	ConnectionError
+	Failed to open TCP connection.	"failed to connect to {}: {}"	FailedToConnect { url: Url, source: io::Error },	ConnectionError
+	Failed to poll mio Poll handle.	"failed to poll: {}"	FailedToPoll { source: io::Error },	ConnectionError
+	The requested frame size is smaller than the minimum required by AMQP.	"requested frame max is too small (min = {}, requested = {})"	FrameMaxTooSmall { min: u32, requested: u32 },	ConnectionError
+	An I/O error occurred while reading from the socket.	"I/O error while reading socket: {}"	IoErrorReadingSocket { source: io::Error },	ConnectionError
+	An I/O error occurred while writing from the socket.	"I/O error while writing socket: {}"	IoErrorWritingSocket { source: io::Error },	ConnectionError
+	The server missed too many successive heartbeats.	"missed heartbeats from server"	MissedServerHeartbeats,	ConnectionError
+	Could not register descriptor with Poll handle.	"failed to register object with polling handle: {}"	RegisterWithPollHandle { source: io::Error },	ConnectionError
+	Error resolving a URL into an IP address (or addresses).	"failed to resolve IP address of {}: {}"	ResolveUrlToSocketAddr { url: Url, source: io::Error },	ConnectionError
+	The server closed the connection with the given reply code and text.	"server closed connection (code={} message={})"	ServerClosedConnection { code: u16, message: String },	ConnectionError
+	The underlying socket was closed.	"underlying socket closed unexpectedly"	UnexpectedSocketClose,	ConnectionError
+	Failed to resolve a URL into an IP address (or addresses).	"URL did not resolve to an IP address: {}"	UrlNoSocketAddrs { url: Url },	ConnectionError
+	Could not parse heartbeat parameter of URL.	"could not parse heartbeat parameter of URL {}: {}"	UrlParseHeartbeat { url: Url, source: std::num::ParseIntError },	ConnectionError
+	The client sent an AMQP exception to the server and closed the connection.	"internal client exception - received unhandled frames from server"	ClientException,	MessageError
+	No more channels can be opened because there are already [`channel_max`](struct.ConnectionOptions.html#method.channel_max) channels open.	"no more channel ids are available"	ExhaustedChannelIds,	MessageError
+	We received a valid AMQP frame but not one we expected; e.g., receiving an incorrect response to an AMQP method call.	"AMQP protocol error - received unexpected frame"	FrameUnexpected,	MessageError
+	We received data that could not be parsed as an AMQP frame.	"received malformed data - expected AMQP frame"	MalformedFrame,	MessageError
+cfg(feature = "native-tls")]	Error from underlying TLS implementation.	"could not create TLS connector: {}"	CreateTlsConnector { source: native_tls::Error },	NonRecoverableError
+	URL contains extra path segments.	"URL contains extraneous path segments: {}"	ExtraUrlPathSegments { url: Url },	NonRecoverableError
+	An insecure URL was supplied to [`Connection::open`](struct.Connection.html#method.open), which only allows `amqps://...` URLs.	"insecure URL passed to method that only allows secure connections: {}"	InsecureUrl { url: Url },	NonRecoverableError
+	The supplied authentication credentials were not accepted by the server.	"invalid credentials"	InvalidCredentials,	NonRecoverableError
+	Invalid scheme for URL.	"invalid scheme for URL {}: expected `amqp` or `amqps`"	InvalidUrlScheme { url: Url },	NonRecoverableError
+	The server requested a Secure/Secure-Ok exchange, which are currently unsupported.	"SASL secure/secure-ok exchanges are not supported"	SaslSecureNotSupported,	NonRecoverableError
+	Failed to set the port on a URL.	"cannot specify port for URL {}"	SpecifyUrlPort { url: Url },	NonRecoverableError
+	A TLS connection was requested (e.g., via URL), but the amiquip was built without TLS support.	"amiquip built without TLS support"	TlsFeatureNotEnabled,	NonRecoverableError
+cfg(feature = "native-tls")]	The TLS handshake failed.	"TLS handshake failed: {}"	TlsHandshake { source: native_tls::Error },	NonRecoverableError
+	The server does not support the requested auth mechanism.	"requested auth mechanism unavailable (available = {}, requested = {})"	UnsupportedAuthMechanism {available: String, requested: String,},	NonRecoverableError
+	The server does not support the requested locale.	"requested locale unavailable (available = {}, requested = {})"	UnsupportedLocale {available: String, requested: String   },	NonRecoverableError
+	Invalid auth mechanism requested in URL.	"invalid auth mechanism for URL {}: {} (expected `external`)"	UrlInvalidAuthMechanism { url: Url, mechanism: String },	NonRecoverableError
+	URL is missing domain.	"invalid URL (missing domain): {}"	UrlMissingDomain { url: Url },	NonRecoverableError
+	Could not parse channel_max parameter of URL.	"could not parse channel_max parameter of URL {}: {}"	UrlParseChannelMax { url: Url, source: std::num::ParseIntError },	NonRecoverableError
+	Could not parse connection_timeout parameter of URL.	"could not parse connection_timeout parameter of URL {}: {}"	UrlParseConnectionTimeout { url: Url, source: std::num::ParseIntError },	NonRecoverableError
+	URL parsing failed.	"could not parse url: {}"	UrlParseError { source: url::ParseError },	NonRecoverableError
+	Unsupported URL parameter.	"unsupported parameter in URL {}: {}"	UrlUnsupportedParameter { url: Url, parameter: String },	NonRecoverableError

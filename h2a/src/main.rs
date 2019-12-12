@@ -1,6 +1,6 @@
 #[macro_use]
 extern crate actix;
-// extern crate actix_broker;
+extern crate actix_broker;
 // extern crate actix_lua;
 extern crate actix_web;
 extern crate futures;
@@ -25,6 +25,9 @@ use futures::future::{Future, IntoFuture, result, ok as fut_ok, err as fut_err, 
 // #[macro_use] extern crate serde_json;
 // #[macro_use] extern crate actix_derive;
 
+#[macro_use] extern crate failure;
+
+
 // extern crate itertools;
 
 // extern crate lapin_futures;
@@ -32,7 +35,10 @@ use futures::future::{Future, IntoFuture, result, ok as fut_ok, err as fut_err, 
 
 extern crate amiquip;
 
-use actix_web::dev::Payload; // <--- for dev::Payload
+extern crate dotenv;
+use dotenv::dotenv;
+use std::env;
+
 // use actix_broker::{BrokerSubscribe, BrokerIssue};
 // use actix_redis::{Command, RedisActor, Error as ARError}; 
 use actix_web::{
@@ -51,7 +57,6 @@ use actix_web::{
     // web::Payload,
 };
 
-use actix_cors::Cors;
 
 // ---
 // struct handlers {};
@@ -61,87 +66,112 @@ use actix_cors::Cors;
 // }
 // ---
 
-use std::env;
+extern crate argparse;
+
+use argparse::{ArgumentParser, StoreOption};
+
+mod messages;
+use messages::BackboneConnectTo;
+mod errors;
 
 mod appconfig;
-use appconfig::config_app;
+use appconfig::{config_app, cors_middleware};
 
-mod http_handlers;
+// mod http_handlers;
+mod actors;
 // use http_handlers;
+extern crate fairways_core;
 
+use derive_more::Display; // naming it clearly for illustration purposes
+
+use std::sync::mpsc;
+use std::thread;
+
+lazy_static! {
+    static ref DEFAULT_HTTP_HOST: String = "0.0.0.0".to_string();
+    static ref DEFAULT_HTTP_PORT: u32 = 12000;    
+    static ref DEFAULT_AMQP_CONN_STR: String = "amqp://guest:guest@127.0.0.1:5672".to_string();
+}
 
 fn main() -> std::io::Result<()> {
-    // dotenv().ok();
+    dotenv().ok();
 
-    
-    ::std::env::set_var("RUST_LOG", "error,actix_web=error,main=error");
+    let implement_cors = false;
+
+    let mut port: Option<u32> = None; // 12000;
+    let mut host: Option<String> = None; // "0.0.0.0".to_string();
+
+    // ::std::env::set_var("RUST_LOG", "debug,actix_web=error,main=debug,http_handlers=debug");
     env_logger::init();
 
-    // let port = env::args().nth(1).ok_or("Port parameter is invalid or missed!".to_owned()).and_then(|arg| arg.parse::<u32>().map_err(|err| err.to_string())).unwrap();
-    let port = match env::args().nth(1) {
-        Some(arg) => arg.parse::<u32>().map_err(|err| err.to_string()).unwrap(),
-        _ => 8010,
-    };
+    {  // this block limits scope of borrows by ap.refer() method
+        let mut ap = ArgumentParser::new();
+        ap.set_description("HTTP->AMQP bridge");
+        ap.refer(&mut port)
+            .add_option(&["-p", "--port"], StoreOption,
+            "Port to listen");
 
-    let srv_addr = format!("0.0.0.0:{}", port);
+        ap.refer(&mut host)
+            .add_option(&["-h", "--host"], StoreOption,
+            "Host to listen");
 
-    let X_COOKIE_HEADER: &'static str = "x-cookie";
+        // ap.stop_on_first_argument(true);
+        ap.parse_args_or_exit();
+    }
 
-    let sys = actix::System::new("http2buff");
-    println!("Starting http server: {}", &srv_addr);
+    let srv_addr = format!("{}:{}", host.unwrap_or(DEFAULT_HTTP_HOST.clone()), port.unwrap_or(*DEFAULT_HTTP_PORT));
+    let conn_str = env::var("FWS_AMQP_CONN_STR").unwrap_or(DEFAULT_AMQP_CONN_STR.clone());
+
+    let (tx, rx) = mpsc::channel();
+
+    let server_thread = thread::spawn(move || {
+
+        let sys = actix::System::new("h2a");
+        println!("Starting http server: {}", &srv_addr);
+
+        let proxy_addr = actors::BackboneActor::load_from_registry();
+
+        // let state = actix::SyncArbiter::start(10, || {
+        //     actors::ChannelActor::default().start()
+        // }).recipient::<messages::AmqpMessage>();
     
-    // let registry_addr = RoutesRegistry::from_registry();
+        HttpServer::new(move || {
     
-    // TO_DO: SyncContext: Context.set_mailbox_capacity() up from 16!
-    HttpServer::new(move || {
+            
+            let app = App::new()
+                .data(actors::ClientPool{
+                    addr: actix::SyncArbiter::start(10, || {
+                            actors::ChannelActor::default()
+                        }).recipient::<messages::AmqpMessage>()
+                    })
+                .configure(config_app)
+                // enable logger
+                .wrap(middleware::Logger::default());
+            
+            // if implement_cors {
+            //     app = app.wrap(cors_middleware());
+            // }
+    
+            app
         
-        // let shared_data = web::Data::new(AppState{
-            // router: Arbiter::start(move|_| Router::new())
-            // router: Router::new().start()
-            // buffers
-        // });
-    
-        // fn add_cors() {
-        //     // Cors::default()
-        //     Cors::new()
-        //         // .allowed_origin("*") // <- Avoid credentials in client!!! See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin
-        //         .allowed_methods(vec![
-        //             "HEAD",
-        //             "OPTIONS",
-        //             "GET", 
-        //             "POST",
-        //             "DELETE"
-        //             ])
-        //         .allowed_headers(vec![
-        //             http::header::ACCEPT,
-        //             http::header::CONTENT_TYPE,
-        //             http::header::CONTENT_LENGTH,
-        //             // http::header::USER_AGENT,
-        //             http::header::ORIGIN, 
-        //             // http::header::AUTHORIZATION, 
-        //             http::header::COOKIE, 
-        //             http::header::HeaderName::from_static(X_COOKIE_HEADER),
-        //             ])
-        //         .supports_credentials()
-        //         .max_age(3600)        
-        // }
+        }).bind(srv_addr)
+            .unwrap()
+            .keep_alive(5)
+            // .workers(4)
+            .shutdown_timeout(1)
+            .start();
         
-        App::new()
-            // .register_data(shared_data.clone())
-            // .wrap(
-            //     add_cors()
-            // )
-            .configure(config_app)
-            // enable logger
-            .wrap(middleware::Logger::default())
+        let _ = tx.send(proxy_addr).expect("Cannot send registry address to channel");            
+        let _ = sys.run();
     
-    }).bind(srv_addr)
-        .unwrap()
-        .keep_alive(5)
-        // .workers(4)
-        .shutdown_timeout(1)
-        .start();
+    });
+
+    let proxy_addr = rx.recv().expect("Cannot obtain proxy addr - whether it running now?");
+    let _ = proxy_addr.send(BackboneConnectTo(conn_str)).wait().expect("Proxy: cannot establish connection to AMQP server");
+
+    server_thread.join().expect("Error in the main thread");
 
     Ok(())
+
 }
 

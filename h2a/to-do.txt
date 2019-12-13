@@ -3,3 +3,6 @@
 [ ] Map http headers to prefixed "http_..." headers in amqp messages (switchable option)
 [ ] Additional strategies to handle incoming events: today - reject messages in all states other than "Connected", tomorrow - try to keep controlled amount of messages during re-connection
 [ ] Differ QoS ("measurements" amd "events" channels)
+
+[ ] --workers setting for ArgParse
+[ ] - polling timeouts - to args options also

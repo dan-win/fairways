@@ -27,7 +27,6 @@ use futures::future::{Future, IntoFuture, result, ok as fut_ok, err as fut_err, 
 
 #[macro_use] extern crate failure;
 
-
 // extern crate itertools;
 
 // extern crate lapin_futures;
@@ -57,7 +56,7 @@ use actix_web::{
     // web::Payload,
 };
 
-
+extern crate uuid;
 // ---
 // struct handlers {};
 
@@ -79,6 +78,7 @@ use appconfig::{config_app, cors_middleware};
 
 // mod http_handlers;
 mod actors;
+mod extractors;
 // use http_handlers;
 extern crate fairways_core;
 
@@ -140,10 +140,9 @@ fn main() -> std::io::Result<()> {
             
             let app = App::new()
                 .data(actors::ClientPool{
-                    addr: actix::SyncArbiter::start(10, || {
-                            actors::ChannelActor::default()
-                        }).recipient::<messages::AmqpMessage>()
-                    })
+                    addr: actix::SyncArbiter::start(4, || actors::ChannelActor::default()).recipient::<messages::AmqpMessage>()
+                })
+                    // addr: actors::ChannelActor::start_instance().recipient::<messages::AmqpMessage>()
                 .configure(config_app)
                 // enable logger
                 .wrap(middleware::Logger::default());

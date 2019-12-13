@@ -6,7 +6,7 @@ use actix_web::get;  // <- here is "decorator"
 
 use actix_cors::Cors;
 
-use crate::actors::{by_get, by_post};
+use crate::extractors::{by_get, by_post};
 
 
 // fn amqp_pub_post((route, conf, query, state): (web::Path<String>, web::Json<models::LinkConf>, Query<WriteModeQuery>, web::Data<AppState>)) -> impl Future<Item = HttpResponse, Error = Error> {

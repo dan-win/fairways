@@ -6,3 +6,4 @@
 
 [ ] --workers setting for ArgParse
 [ ] - polling timeouts - to args options also
+[ ] - use listener to monitor connection?: opportunity: https://docs.rs/amiquip/0.3.2/amiquip/struct.Channel.html#method.listen_for_returns

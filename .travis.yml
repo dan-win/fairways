@@ -4,7 +4,36 @@ rust:
   # - stable
   # - beta
   # - nightly
-jobs:
-  # allow_failures:
-  #   - rust: nightly
-  fast_finish: true
+script:
+  - cargo build --verbose --all
+  - cargo test --verbose --all
+# jobs:
+#   # allow_failures:
+#   #   - rust: nightly
+#   fast_finish: true
+cache: cargo
+before_cache:
+  - rm -rf "$TRAVIS_HOME/.cargo/registry/src"
+
+matrix:
+  include:
+    # Linux release build
+    - env: DEPLOY=1 TARGET=x86_64-unknown-linux-musl OPENSSL_STATIC=yes
+      before_script:
+        - rustup target add $TARGET
+        - rustup component add rustfmt
+      script:
+        - cargo fmt --all -- --check
+        - cargo build --locked --release --target $TARGET --all
+      addons:
+        apt:
+          packages:
+          - musl-tools
+          - linux-headers-generic
+
+deploy:
+  provider: releases
+  # token: <encrypted token>
+  # file: *
+  on:
+    tags: true

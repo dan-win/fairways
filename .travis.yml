@@ -18,7 +18,7 @@ matrix:
     - os:
       - linux
     # Linux release build
-    - env: DEPLOY=1 TARGET=x86_64-unknown-linux-musl #OPENSSL_STATIC=yes
+    - env: TARGET=x86_64-unknown-linux-musl #OPENSSL_STATIC=yes
       # dist: xenial
       # sudo: required
       before_script:
@@ -69,7 +69,7 @@ before_cache:
 branches:
   only:
     # release tags
-    - /^v\d+\.\d+\.\d+.*$/
+    - /\d+\.\d+\.\d+.*$/
     - master
 
 notifications:

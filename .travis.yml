@@ -5,8 +5,8 @@ rust:
   # - beta
   # - nightly
 script:
-  - cargo build --verbose --all
-  - cargo test --verbose --all
+  - cargo build --verbose --package h2a
+  - cargo test --verbose --package h2a
 # jobs:
 #   # allow_failures:
 #   #   - rust: nightly
@@ -23,8 +23,8 @@ matrix:
         - rustup target add $TARGET
         - rustup component add rustfmt
       script:
-        - cargo fmt --all -- --check
-        - cargo build --locked --release --target $TARGET --all
+        - cargo fmt --package h2a -- --check
+        - cargo build --locked --release --target $TARGET --package h2a
       addons:
         apt:
           packages:

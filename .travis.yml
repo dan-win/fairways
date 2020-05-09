@@ -49,7 +49,7 @@ script:
   - RUST_BACKTRACE=1 cargo test --release --locked --all --verbose
 
 before_deploy:
-  - "./ci/prepare_deploy.sh"
+  - ./ci/prepare_deploy.sh h2a
 
 deploy:
   provider: releases

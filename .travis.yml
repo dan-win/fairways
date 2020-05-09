@@ -1,24 +1,26 @@
+dist: xenial
 language: rust
 rust:
   - 1.42.0
   # - stable
   # - beta
   # - nightly
-script:
-  - cargo build --verbose --package h2a
-  - cargo test --verbose --package h2a
+# script:
+#   - cargo build --verbose --package h2a
+#   - cargo test --verbose --package h2a
 # jobs:
 #   # allow_failures:
 #   #   - rust: nightly
 #   fast_finish: true
-cache: cargo
-before_cache:
-  - rm -rf "$TRAVIS_HOME/.cargo/registry/src"
 
 matrix:
   include:
+    - os:
+      - linux
     # Linux release build
     - env: DEPLOY=1 TARGET=x86_64-unknown-linux-musl #OPENSSL_STATIC=yes
+      # dist: xenial
+      # sudo: required
       before_script:
         - rustup target add $TARGET
         - rustup component add rustfmt
@@ -31,9 +33,45 @@ matrix:
           - musl-tools
           - linux-headers-generic
 
+    # Win64? See: https://github.com/japaric/rust-cross/blob/1573dbba707e588bd2715934670dffc480bc3da2/.travis.yml#L38
+    - env: TARGET=x86_64-pc-windows-gnu
+      # dist: xenial
+      # sudo: required
+      addons:
+        apt:
+          packages:
+            - gcc-mingw-w64
+
+script:
+  - rustup component add rustfmt
+  - cargo fmt --all -- --check
+  - cargo build --release --locked --verbose
+  - RUST_BACKTRACE=1 cargo test --release --locked --all --verbose
+
+before_deploy:
+  - "./ci/prepare_deploy.sh"
+
 deploy:
   provider: releases
   # token: <encrypted token>
-  # file: *
+  file_glob: true
+  file: 
+    - h2a-$TRAVIS_TAG-$TARGET.*
+    # - h2a-$TRAVIS_TAG-$TARGET.tar.gz
+    # - h2a-$TRAVIS_TAG-$TARGET.tar.gz.sha256
   on:
     tags: true
+
+cache: cargo
+before_cache:
+  - rm -rf "$TRAVIS_HOME/.cargo/registry/src"
+
+branches:
+  only:
+    # release tags
+    - /^v\d+\.\d+\.\d+.*$/
+    - master
+
+notifications:
+  email:
+    on_success: never

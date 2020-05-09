@@ -8,7 +8,6 @@ use amiquip::Channel;
 
 use crate::errors::SvcError;
 
-
 pub type AmqpMessageResponse = Result<(), SvcError>;
 pub type SpawnChannelResponse = Result<Channel, SvcError>;
 
@@ -25,14 +24,12 @@ pub struct BackboneConnectionReset;
 /// Request to Backbone to create new channel
 pub struct SpawnChannel;
 
-
 #[derive(Clone, Debug, Message)]
 #[rtype(result = "AmqpMessageResponse")]
 pub struct AmqpMessage(pub Bytes, pub MsgContext);
 
 #[derive(Clone, Debug, Message)]
 pub struct AmqpFailMessage(pub Bytes, pub MsgContext, pub SvcError);
-
 
 // Control messages
 

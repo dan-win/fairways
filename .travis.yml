@@ -44,9 +44,9 @@ matrix:
 
 script:
   - rustup component add rustfmt
-  - cargo fmt --all -- --check
+  - cargo fmt --package h2a -- --check
   - cargo build --release --locked --verbose
-  - RUST_BACKTRACE=1 cargo test --release --locked --all --verbose
+  - RUST_BACKTRACE=1 cargo test --release --locked --package h2a --verbose
 
 before_deploy:
   - ./ci/prepare_deploy.sh h2a

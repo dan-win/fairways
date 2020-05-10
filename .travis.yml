@@ -1,10 +1,5 @@
-dist: xenial
+# dist: xenial
 language: rust
-rust:
-  - 1.42.0
-  # - stable
-  # - beta
-  # - nightly
 # script:
 #   - cargo build --verbose --package h2a
 #   - cargo test --verbose --package h2a
@@ -15,8 +10,15 @@ rust:
 
 matrix:
   include:
-    - os:
-      - linux
+    # - os:
+    #   - linux
+
+    - rust:
+      - 1.42.0
+      # - stable
+      # - beta
+      # - nightly
+
     # Linux release build
     - env: TARGET=x86_64-unknown-linux-musl #OPENSSL_STATIC=yes
       # dist: xenial
@@ -59,6 +61,7 @@ deploy:
     - h2a-$TRAVIS_TAG-$TARGET.*
     # - h2a-$TRAVIS_TAG-$TARGET.tar.gz
     # - h2a-$TRAVIS_TAG-$TARGET.tar.gz.sha256
+  edge: true
   on:
     tags: true
 

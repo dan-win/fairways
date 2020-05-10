@@ -5,7 +5,8 @@ set -eux
 export CRATE_NAME=$1
 name="$CRATE_NAME-$TRAVIS_TAG-$TARGET"
 mkdir -p "$name"
-cp "target/$TARGET/release/$CRATE_NAME" "$name/"
+# cp "target/$TARGET/release/$CRATE_NAME" "$name/"
+cp "target/$TARGET/release/*" "$name/"
 # cp cargo-crev/README.md LICENSE* "$name/"
 tar czvf "$name.tar.gz" "$name"
 

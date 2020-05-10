@@ -1,77 +1,58 @@
 # dist: xenial
 language: rust
-# script:
-#   - cargo build --verbose --package h2a
-#   - cargo test --verbose --package h2a
-# jobs:
-#   # allow_failures:
-#   #   - rust: nightly
-#   fast_finish: true
+rust:
+- 1.42.0
+# - stable
+
+env:
+- PACKAGE=h2a
+# You could enumerate other packages from workspace ...
 
 matrix:
   include:
-    # - os:
-    #   - linux
-
-    - rust:
-      - 1.42.0
-      # - stable
-      # - beta
-      # - nightly
-
+    
     # Linux release build
     - env: TARGET=x86_64-unknown-linux-musl #OPENSSL_STATIC=yes
-      # dist: xenial
-      # sudo: required
+
       before_script:
         - rustup target add $TARGET
         - rustup component add rustfmt
       script:
-        - cargo fmt --package h2a -- --check
-        - cargo build --locked --release --target $TARGET --package h2a
+        - cargo fmt --package $PACKAGE -- --check
+        - cargo build --locked --release --target $TARGET --package $PACKAGE
       addons:
         apt:
           packages:
-          - tree
           - musl-tools
           - linux-headers-generic
 
     # Win64? See: https://github.com/japaric/rust-cross/blob/1573dbba707e588bd2715934670dffc480bc3da2/.travis.yml#L38
     - env: TARGET=x86_64-pc-windows-gnu
-      # dist: xenial
-      # sudo: required
       before_script:
         - rustup target add $TARGET
         - rustup component add rustfmt
       script:
-        - cargo fmt --package h2a -- --check
-        - cargo build --locked --release --target $TARGET --package h2a
+        - cargo fmt --package $PACKAGE -- --check
+        - cargo build --locked --release --target $TARGET --package $PACKAGE
       addons:
         apt:
           packages:
-          - tree
           - gcc-mingw-w64
 
-# script:
-#   - rustup component add rustfmt
-#   - cargo fmt --package h2a -- --check
-#   - cargo build --release --locked --verbose
-#   - RUST_BACKTRACE=1 cargo test --release --locked --package h2a --verbose
 
 before_deploy:
-  - echo $(pwd)
-  - ./ci/prepare_deploy.sh h2a
+  - ./ci/prepare_deploy.sh $PACKAGE
 
 deploy:
   provider: releases
-  # token: <encrypted token>
   file_glob: true
   file: 
-    - h2a-$TRAVIS_TAG-$TARGET.*
-    # - h2a-$TRAVIS_TAG-$TARGET.tar.gz
-    # - h2a-$TRAVIS_TAG-$TARGET.tar.gz.sha256
+    - $PACKAGE-$TRAVIS_TAG-$TARGET.*
   edge: true
-  on:
+  on: # More: https://docs.travis-ci.com/user/deployment/#conditional-releases-with-on
+    # branch: release
+    # Only when target is defined explicitly ()
+    condition: -z "$TARGET"
     tags: true
 
 cache: cargo

@@ -1,12 +1,22 @@
 #!/bin/bash
 
 set -eux
-
-export CRATE_NAME=$1
-name="$CRATE_NAME-$TRAVIS_TAG-$TARGET"
+BIN_NAME=$1
+if [[ "$TARGET" =~ "windows" ]]; then
+    extension=".exe"
+else    
+    extension=
+fi
+# export BIN_NAME=$1
+name="$BIN_NAME-$TRAVIS_TAG-$TARGET"
 mkdir -p "$name"
-# cp "target/$TARGET/release/$CRATE_NAME" "$name/"
-cp "target/$TARGET/release/*" "$name/"
+echo ===========
+echo $(pwd)
+tree target
+echo ===========
+
+cp "target/$TARGET/release/$BIN_NAME$extension" "$name/"
+# cp "target/$TARGET/release/*" "$name/"
 # cp cargo-crev/README.md LICENSE* "$name/"
 tar czvf "$name.tar.gz" "$name"
 

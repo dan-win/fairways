@@ -32,6 +32,7 @@ matrix:
       addons:
         apt:
           packages:
+          - tree
           - musl-tools
           - linux-headers-generic
 
@@ -39,10 +40,17 @@ matrix:
     - env: TARGET=x86_64-pc-windows-gnu
       # dist: xenial
       # sudo: required
+      before_script:
+        - rustup target add $TARGET
+        - rustup component add rustfmt
+      script:
+        - cargo fmt --package h2a -- --check
+        - cargo build --locked --release --target $TARGET --package h2a
       addons:
         apt:
           packages:
-            - gcc-mingw-w64
+          - tree
+          - gcc-mingw-w64
 
 # script:
 #   - rustup component add rustfmt
@@ -51,6 +59,7 @@ matrix:
 #   - RUST_BACKTRACE=1 cargo test --release --locked --package h2a --verbose
 
 before_deploy:
+  - echo $(pwd)
   - ./ci/prepare_deploy.sh h2a
 
 deploy:

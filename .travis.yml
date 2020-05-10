@@ -5,9 +5,8 @@ rust:
 # - stable
 
 env:
-  matrix:
-    - PACKAGE=h2a
-    # You could enumerate other packages from workspace ...
+  - PACKAGE=h2a
+  # You could enumerate other packages from workspace ...
 
 matrix:
   include:

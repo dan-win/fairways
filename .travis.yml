@@ -14,6 +14,11 @@ matrix:
     
     # Linux release build
     - env: TARGET=x86_64-unknown-linux-musl #OPENSSL_STATIC=yes
+      before_script:
+        - rustup target add $TARGET
+      script:
+        - cargo fmt --package $PACKAGE -- --check
+        - cargo build --locked --release --target $TARGET --package $PACKAGE
       addons:
         apt:
           packages:
@@ -22,17 +27,18 @@ matrix:
 
     # Win64? See: https://github.com/japaric/rust-cross/blob/1573dbba707e588bd2715934670dffc480bc3da2/.travis.yml#L38
     - env: TARGET=x86_64-pc-windows-gnu
+      before_script:
+        - rustup target add $TARGET
+      script:
+        - cargo fmt --package $PACKAGE -- --check
+        - cargo build --locked --release --target $TARGET --package $PACKAGE
       addons:
         apt:
           packages:
           - gcc-mingw-w64
 
 before_script:
-  - rustup target add $TARGET
   - rustup component add rustfmt
-script:
-  - cargo fmt --package $PACKAGE -- --check
-  - cargo build --locked --release --target $TARGET --package $PACKAGE
 
 before_deploy:
   - ./ci/prepare_deploy.sh $PACKAGE

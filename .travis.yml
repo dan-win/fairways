@@ -10,29 +10,30 @@ jobs:
     # Linux release build
     - env: TARGET=x86_64-unknown-linux-musl PACKAGE=h2a #OPENSSL_STATIC=yes
       before_script:
-        - rustup component add rustfmt
         - rustup target add $TARGET
+        - rustup component add rustfmt
       script:
         - cargo fmt --package $PACKAGE -- --check
         - cargo build --locked --release --target $TARGET --package $PACKAGE
       addons:
         apt:
           packages:
-          - musl-tools
-          - linux-headers-generic
+            - musl-tools
+            - linux-headers-generic
 
     # Win64? See: https://github.com/japaric/rust-cross/blob/1573dbba707e588bd2715934670dffc480bc3da2/.travis.yml#L38
     - env: TARGET=x86_64-pc-windows-gnu PACKAGE=h2a
       before_script:
-        - rustup component add rustfmt
         - rustup target add $TARGET
+        - ./ci/win_fix_linker.sh
+        - rustup component add rustfmt
       script:
         - cargo fmt --package $PACKAGE -- --check
         - cargo build --locked --release --target $TARGET --package $PACKAGE
       addons:
         apt:
           packages:
-          - gcc-mingw-w64
+            - gcc-mingw-w64
 
 # before_script:
 #   - rustup component add rustfmt
